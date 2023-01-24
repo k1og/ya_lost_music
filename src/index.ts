@@ -1,8 +1,58 @@
 import TelegramBot from 'node-telegram-bot-api'
 import Redis from 'ioredis'
 import axios from 'axios'
-// import schedule from 'node-schedule'
+import schedule from 'node-schedule'
 import { config } from './config';
+
+const rule = new schedule.RecurrenceRule();
+rule.hour = 14
+rule.minute = 0
+rule.tz = 'Etc/UTC'
+
+const job = schedule.scheduleJob(rule, async () => {
+    const usernameKeys = await redis.keys(getUsernameDatabaseKey('*'))
+    usernameKeys.forEach(async (usernameKey) => {
+        const tgChatId = usernameKey.replace(getUsernameDatabaseKey(''), '')
+        await checkForChanges(tgChatId)
+    })
+});
+
+const checkForChanges = async (tgChatId: string) => {
+    try {
+        const username = await redis.get(getUsernameDatabaseKey(tgChatId))
+        if (!username) {
+            await bot.sendMessage(tgChatId, `Вы не зарегистрировали профиль`)
+            return 
+        }
+        const tracksString = await redis.get(getTracksInfoDatabaseKey(username))
+        if (!tracksString) {
+            throw new Error('TODO: add meaningful error')
+        }
+        const oldTracksInfo = JSON.parse(tracksString) as Array<TrackInfo>
+        const newTracksInfo = (await getPlaylistInfo(username)).tracks
+        const { deletedTracksStrings, newTracksStrings } = await checkForPlaylistChanges(oldTracksInfo, newTracksInfo)
+
+        if (!deletedTracksStrings.length && !newTracksStrings.length) {
+            await bot.sendMessage(tgChatId, `Никаких изменений`)
+        }
+
+        if (deletedTracksStrings.length) {
+            await bot.sendMessage(tgChatId, `Удаленные треки:\n ${deletedTracksStrings.join('\n')}`)
+        }
+
+        if (newTracksStrings.length) {
+            await bot.sendMessage(tgChatId, `Новые треки:\n ${newTracksStrings.join('\n')}`)
+        }
+
+        await redis.set(getTracksInfoDatabaseKey(username), JSON.stringify(newTracksInfo))
+
+    } catch (error) {
+        await bot.sendMessage(tgChatId, error)
+    }
+}
+
+const getUsernameDatabaseKey = (tgChatId: string) => `ya_music_username_${tgChatId}`
+const getTracksInfoDatabaseKey = (yaMusicUsername: string) => `ya_music_tracks_${yaMusicUsername}`
 
 const redis = new Redis(config.databaseUrl)
 
@@ -50,7 +100,7 @@ const getPlaylistInfo = async (username: string): Promise<PlaylistInfo> => {
     return playlist
 }
 
-const checkForChanges = async (oldTracksInfo: Array<TrackInfo>, newTracksInfo: Array<TrackInfo>): Promise<PlaylistChanges> => {
+const checkForPlaylistChanges = async (oldTracksInfo: Array<TrackInfo>, newTracksInfo: Array<TrackInfo>): Promise<PlaylistChanges> => {
     const deletedTracksStrings: Array<string> = []
     const newTracksStrings: Array<string> = []
 
@@ -87,6 +137,7 @@ bot.on('message', async (msg, _metadata) => {
             'Я з**бався терять песни, из-за того, что кнопки переключения треков находятся рядом с кнопками "Нравится" и "Не рекомендовать"\n' +
             'Я просто мискликаю, не замечая этого и всё, прощай, песенка, я даже не вспомню о твоем существовании\n' +
             'Поэтому вместо того, чтобы РАБотать, написал бота, который трекает изменения содержимого в плейлисте "Мне нравится"\n\n' +
+            'Проверка происходить в 14:00 по UTC. Так же вы можете использовать команду /check \n\n\n' +
             // TODO: make link plain text
             'Отправьте ссылку на ваш профиль в Яндекс Музыке в формате https://music.yandex.ru/users/<USERNAME>/playlists\n' +
             '(Публичный доступ к фонотеке должен быть включен)\n\n' +
@@ -102,15 +153,15 @@ bot.on('message', async (msg, _metadata) => {
         const username = msg.text!.split('/')[msg.text!.split('/').length - 1 - 1]
         try {
             const playlist = await getPlaylistInfo(username)
-            const oldUsername = await redis.get(msg.chat.id.toString())
+            const oldUsername = await redis.get(getUsernameDatabaseKey(msg.chat.id.toString()))
 
             if (oldUsername) {
-                await redis.del(msg.chat.id.toString())
-                await redis.del(oldUsername)
+                await redis.del(getUsernameDatabaseKey(msg.chat.id.toString()))
+                await redis.del(getTracksInfoDatabaseKey(username))
             }
             
-            await redis.set(msg.chat.id.toString(), username)
-            await redis.set(username, JSON.stringify(playlist.tracks))
+            await redis.set(getUsernameDatabaseKey(msg.chat.id.toString()), username)
+            await redis.set(getTracksInfoDatabaseKey(username), JSON.stringify(playlist.tracks))
             const successMessage = oldUsername ? `Успешно перерегистрировано` : `Успешно зарегистрировано`
             await bot.sendMessage(msg.chat.id, successMessage)
         } catch (error) {
@@ -121,38 +172,15 @@ bot.on('message', async (msg, _metadata) => {
     }
 
     if (msg.text === '/check') {
-        try {
-            const username = await redis.get(msg.chat.id.toString())
-            if (!username) {
-                await bot.sendMessage(msg.chat.id, `Вы не зарегистрировали профиль`)
-                return 
-            }
-            const tracksString = await redis.get(username)
-            if (!tracksString) {
-                throw new Error('TODO: add meaningful error')
-            }
-            const oldTracksInfo = JSON.parse(tracksString) as Array<TrackInfo>
-            const newTracksInfo = (await getPlaylistInfo(username)).tracks
-            const { deletedTracksStrings, newTracksStrings } = await checkForChanges(oldTracksInfo, newTracksInfo)
-
-            if (!deletedTracksStrings.length && !newTracksStrings.length) {
-                await bot.sendMessage(msg.chat.id, `Никаких изменений`)
-            }
-
-            if (deletedTracksStrings.length) {
-                await bot.sendMessage(msg.chat.id, `Удаленные треки:\n ${deletedTracksStrings.join('\n')}`)
-            }
-
-            if (newTracksStrings.length) {
-                await bot.sendMessage(msg.chat.id, `Новые треки:\n ${newTracksStrings.join('\n')}`)
-            }
-
-            await redis.set(username, JSON.stringify(newTracksInfo))
-
-        } catch (error) {
-            await bot.sendMessage(msg.chat.id, error)
-        }
+        const tgChatId = msg.chat.id
+        await checkForChanges(tgChatId.toString())
 
         return
     }
+})
+
+process.on('SIGINT', function () { 
+    console.log('gracefulShutdown')
+    schedule.gracefulShutdown()
+    .then(() => process.exit(0))
 })
