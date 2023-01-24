@@ -15,7 +15,7 @@ services:
     image: rediscommander/redis-commander:latest
     restart: always
     environment:
-      READ_ONLY: true
+      READ_ONLY: 'true'
       REDIS_HOSTS: label:db:6379:0:yamusic
     ports:
       - 8081
