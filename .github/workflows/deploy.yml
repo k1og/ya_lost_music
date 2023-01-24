@@ -1,0 +1,26 @@
+name: deploy
+
+on:
+  push:
+    branches: [ "deploy"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build the Docker image
+        run: TG_BOT_TOKEN=${{ secrets.TG_BOT_TOKEN }} docker-compose build
+      - name: Save image
+        run: docker save ya-lost-music:latest -o image.tar
+      - name: install sshpass
+        run: echo ${{ secrets.REMOTE_SERVER_SSH_PASS }} | sudo -S apt-get install sshpass
+      - name: stop and remove old container
+        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} ssh -o "StrictHostKeyChecking=no" ${{ secrets.REMOTE_SERVER_SSH }} "cd /home/alex/ya-lost-music-bot ; docker-compose down ; rm docker-compose.yml ; rm image.tar" || true
+      - name: upload docker image
+        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} scp image.tar ${{ secrets.REMOTE_SERVER_SSH }}:/home/alex/ya-lost-music-bot/image.tar
+      - name: upload docker compose file
+        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} scp docker-compose.yml ${{ secrets.REMOTE_SERVER_SSH }}:/home/alex/ya-lost-music-bot/docker-compose.yml
+      - name: load image and start
+        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} ssh ${{ secrets.REMOTE_SERVER_SSH }} "cd /home/alex/ya-lost-music-bot && echo ${{ secrets.REMOTE_SERVER_SSH_PASS }} | sudo -S docker load -i image.tar && echo ${{ secrets.REMOTE_SERVER_SSH_PASS }} | sudo -S TG_BOT_TOKEN=${{ secrets.TG_BOT_TOKEN }} docker-compose up -d --no-build"

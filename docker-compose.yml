@@ -1,0 +1,34 @@
+version: '3.4'
+
+services:
+
+  db:
+    image: redis:alpine
+    restart: always
+    expose:
+      - 6379
+    command: redis-server --loglevel warning --requirepass yamusic
+    volumes:
+      - ./db:/data
+
+  redisweb:
+    image: rediscommander/redis-commander:latest
+    restart: always
+    environment:
+      READ_ONLY: 'true'
+      REDIS_HOSTS: label:db:6379:0:yamusic
+    ports:
+      - 8081
+    depends_on:
+      - db  
+
+  ya_lost_music_bot:
+    image: ya-lost-music:${CI_COMMIT_SHORT_SHA-latest}
+    build: 
+        context: .
+        args:
+          DB_URL: ${DB_URL-redis://:yamusic@db:6379/0}
+          TG_BOT_TOKEN: ${TG_BOT_TOKEN}
+    restart: always
+    depends_on:
+      - db
