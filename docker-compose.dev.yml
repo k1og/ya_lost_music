@@ -1,0 +1,20 @@
+services:
+
+  redis:
+    image: redis:alpine
+    restart: always
+    ports:
+      - 6380:6379
+    command: redis-server --loglevel warning --requirepass yamusic
+    volumes:
+      - ./db:/data
+
+  redisweb:
+    image: rediscommander/redis-commander:latest
+    restart: always
+    environment:
+      REDIS_HOSTS: label:redis:6379:0:yamusic
+    ports:
+      - 6378:8081
+    depends_on:
+      - redis
