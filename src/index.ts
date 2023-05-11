@@ -37,11 +37,11 @@ const checkForChanges = async (tgChatId: string) => {
         }
 
         if (deletedTracksStrings.length) {
-            await bot.sendMessage(tgChatId, `Удаленные треки:\n ${deletedTracksStrings.join('\n')}`, { parse_mode: 'HTML'})
+            await bot.sendMessage(tgChatId, `Удаленные треки:\n ${deletedTracksStrings.join('\n')}`)
         }
 
         if (newTracksStrings.length) {
-            await bot.sendMessage(tgChatId, `Новые треки:\n ${newTracksStrings.join('\n')}`, { parse_mode: 'HTML'})
+            await bot.sendMessage(tgChatId, `Новые треки:\n ${newTracksStrings.join('\n')}`)
         }
 
         await redis.set(getTracksInfoDatabaseKey(username), JSON.stringify(newTracksInfo))
