@@ -37,11 +37,11 @@ const checkForChanges = async (tgChatId: string) => {
         }
 
         if (deletedTracksStrings.length) {
-            await bot.sendMessage(tgChatId, `Удаленные треки:\n ${deletedTracksStrings.join('\n')}`, { parse_mode: 'HTML'})
+            await bot.sendMessage(tgChatId, `Удаленные треки:\n ${deletedTracksStrings.join('\n')}`)
         }
 
         if (newTracksStrings.length) {
-            await bot.sendMessage(tgChatId, `Новые треки:\n ${newTracksStrings.join('\n')}`, { parse_mode: 'HTML'})
+            await bot.sendMessage(tgChatId, `Новые треки:\n ${newTracksStrings.join('\n')}`)
         }
 
         await redis.set(getTracksInfoDatabaseKey(username), JSON.stringify(newTracksInfo))
@@ -99,7 +99,7 @@ const trackInfoToString = (track: TrackInfo) => {
 const getTrackLink = (track: TrackInfo) => {
     const trackId = track.id;
     const albumId = track.albums.map(albumId => albumId.id).toString()
-    return `<a href="https://music.yandex.ru/album/${albumId}/track/${trackId}"></a>`
+    return `https://music.yandex.ru/album/${albumId}/track/${trackId}`
 }
 
 const getPlaylistInfo = async (username: string): Promise<PlaylistInfo> => {
