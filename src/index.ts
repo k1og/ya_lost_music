@@ -37,11 +37,11 @@ const checkForChanges = async (tgChatId: string) => {
         }
 
         if (deletedTracksStrings.length) {
-            await bot.sendMessage(tgChatId, `Удаленные треки:\n ${deletedTracksStrings.join('\n')}`)
+            await bot.sendMessage(tgChatId, `Удаленные треки:\n ${deletedTracksStrings.join('\n')}`, { parse_mode: 'HTML'})
         }
 
         if (newTracksStrings.length) {
-            await bot.sendMessage(tgChatId, `Новые треки:\n ${newTracksStrings.join('\n')}`)
+            await bot.sendMessage(tgChatId, `Новые треки:\n ${newTracksStrings.join('\n')}`, { parse_mode: 'HTML'})
         }
 
         await redis.set(getTracksInfoDatabaseKey(username), JSON.stringify(newTracksInfo))
@@ -68,6 +68,7 @@ type ArtistInfo = {
     name: string
 }
 type AlbumInfo = {
+    id: number
     title: string
 }
 
@@ -91,7 +92,14 @@ const trackInfoToString = (track: TrackInfo) => {
     const { artists, albums, title } = track
     const artistsName = artists.map(artist => artist.name).join(', ')
     const albumsName = albums.map(album => album.title).join(', ')
-    return `${artistsName} - ${albumsName} - ${title}`
+    const trackLink = getTrackLink(track)
+    return `${artistsName} - ${albumsName} - ${title}\n${trackLink}`
+}
+
+const getTrackLink = (track: TrackInfo) => {
+    const trackId = track.id;
+    const albumId = track.albums.map(albumId => albumId.id).toString()
+    return `<a href="https://music.yandex.ru/album/${albumId}/track/${trackId}"></a>`
 }
 
 const getPlaylistInfo = async (username: string): Promise<PlaylistInfo> => {
@@ -150,7 +158,7 @@ bot.on('message', async (msg, _metadata) => {
 
     const isRegisterCommand = !!(msg.text && profileUrlRegex.test(msg.text))
     if (isRegisterCommand) {
-        const username = msg.text!.split('/')[msg.text!.split('/').length - 1 - 1]
+        const username = msg.text!.split('/')[msg.text!.split('/').length - 2]
         try {
             const playlist = await getPlaylistInfo(username)
             const oldUsername = await redis.get(getUsernameDatabaseKey(msg.chat.id.toString()))
