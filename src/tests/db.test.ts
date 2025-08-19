@@ -1,93 +1,90 @@
-import { beforeEach, afterAll, describe, test, expect } from "@jest/globals";
-import { setUsername, getUsername, setTracksInfo, getTracksInfo, deleteUsersInfo, getChatIdByUsernameKey, redis } from "../db";
-import { PlaylistInfo } from "../types";
 
-describe("Db functions", () => {
-  beforeEach(() => {
-    return redis.flushdb()
-  });
+import { describe, it, expect, beforeEach, afterAll, beforeAll } from '@jest/globals';
+import { db, getUserByChatId, createUser, getAllUsers, updateTracksInfo } from '../db';
+import { User } from '../entities/user.entity';
+import { PlaylistInfo } from '../types';
 
-  afterAll(() => {
-    redis.quit()
+const waitForDbInitialization = () => new Promise<void>(
+  (resolve) => {
+    const interval = setInterval(
+      () => {
+        if (db.isInitialized) {
+          clearInterval(interval)
+          resolve()
+        }
+      },
+      500
+    )
+  }
+)
+
+describe('User Repository', () => {
+  beforeAll(() => {
+    return waitForDbInitialization()
   })
 
-  describe("Username by chatId", () => {
-    test("should return the username for a given tgChatId", async () => {
-      const tgChatId = "123";
-      const username = "testuser";
-      await setUsername(tgChatId, username);
-
-      const result = await getUsername(tgChatId);
-      expect(result).toEqual(username);
-    });
-
-    test("should return null if the username does not exist", async () => {
-      const tgChatId = "123";
-
-      const result = await getUsername(tgChatId);
-      expect(result).toBeNull();
-    });
+  beforeEach(() => {
+    return db.getRepository(User).clear();
   });
 
-  describe("Tracks info", () => {
-    test("should return the tracks info for a given username", async () => {
-      const username = "testuser";
-      const tracks: PlaylistInfo["tracks"] = [
-        {
-          id: "1",
-          title: "Track 1",
-          artists: [],
-          albums: [],
-        },
-      ];
-      await setTracksInfo(username, tracks);
+  afterAll(async () => {
+    await db.getRepository(User).clear();
+    await db.destroy()
+  })
 
-      const result = await getTracksInfo(username);
-      expect(result).toEqual(JSON.stringify(tracks));
-    });
+  it('should create a user', async () => {
+    const newUserId = '123'
+    const newUser = { id: newUserId, timeToNotify: '15:20:00', tracksInfo: [], username: 'idk'}
+    await createUser(newUser);
 
-    test("should return null if the tracks info does not exist", async () => {
-      const username = "testuser";
-
-      const result = await getTracksInfo(username);
-      expect(result).toBeNull();
-    });
+    const user = await getUserByChatId(newUserId);
+    console.log(user)
+    expect(user).toEqual(newUser);
   });
 
-  describe("deleteUsersInfo", () => {
-    test("should delete both the username and tracks info for a given tgChatId and username", async () => {
-      const tgChatId = "123";
-      const username = "testuser";
-      await setUsername(tgChatId, username);
-      await setTracksInfo(username, []);
+  it('should create a user only if he is not exists already and not update existing', async () => {
+    const newUserId = '123'
+    const newUser = { id: newUserId, timeToNotify: '12:00:00', tracksInfo: [], username: 'idk'}
 
-      await deleteUsersInfo(tgChatId, username);
+    await createUser(newUser);
 
-      const usernameResult = await getUsername(tgChatId);
-      const tracksInfoResult = await getTracksInfo(username);
-
-      expect(usernameResult).toBeNull();
-      expect(tracksInfoResult).toBeNull();
-    });
+    let caughtError
+    try {
+      await createUser({...newUser, timeToNotify: '24:00:00'});
+      
+    } catch (error) {
+      caughtError = error
+    }
+    expect(caughtError).toBeDefined();
   });
 
-  describe("getChatIdByUsernameKey", () => {
-    test("should return the tgChatId for a given username key", () => {
-      const usernameKey = "ya_music_username_123";
-      const expectedTgChatId = "123";
+  it('should get all users', async () => {
+    const newUser1Id = '123'
+    const newUser1 = { id: newUser1Id, timeToNotify: '12:00:00', tracksInfo: [], username: 'idk'}
 
-      const result = getChatIdByUsernameKey(usernameKey);
+    const newUser2Id = '456'
+    const newUser2 = { id: newUser2Id, timeToNotify: '12:00:00', tracksInfo: [], username: 'idk2'}
 
-      expect(result).toEqual(expectedTgChatId);
-    });
+    await createUser(newUser1);
+    await createUser(newUser2);
 
-    test("should return null if the username key does not match the pattern", () => {
-      const usernameKey = "invalid_username_key";
-      const expectedTgChatId = null;
+    const users = await getAllUsers();
+    expect(users).toEqual([newUser1, newUser2]);
+  });
 
-      const result = getChatIdByUsernameKey(usernameKey);
+  it('should update tracks info', async () => {
+    const newUserId = '123'
+    const newUser = { id: newUserId, timeToNotify: '12:34:00', tracksInfo: [], username: 'idk'}
+    await createUser(newUser);
 
-      expect(result).toEqual(expectedTgChatId);
-    });
+    const tracks: PlaylistInfo['tracks'] = [
+      { id: 'track1', title: 'Track 1', albums: [], artists: [] },
+      { id: 'track2', title: 'Track 2', albums: [], artists: [] }
+    ];
+
+    await updateTracksInfo(newUser.id, tracks);
+
+    const user = await getUserByChatId(newUser.id);
+    expect(user!.tracksInfo).toEqual(tracks);
   });
 });

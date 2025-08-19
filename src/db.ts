@@ -1,40 +1,38 @@
-import Redis from 'ioredis'
 import { config } from './config'
+import { DataSource } from "typeorm"
+import path from 'path'
+import { User } from './entities/user.entity'
 import { PlaylistInfo } from './types'
 
-export const redis = new Redis(config.databaseUrl)
+export const db = new DataSource({
+    type: "postgres",
+    url: config.databaseUrl,
+    logging: true,
+    entities: [path.join(__dirname, './entities/*.*')],
+})
 
-const getUsernameDatabaseKey = (tgChatId: string) => `ya_music_username_${tgChatId}`
-const getTracksInfoDatabaseKey = (yaMusicUsername: string) => `ya_music_tracks_${yaMusicUsername}`
+db.initialize().then(() => {
+    console.log("DB has been initialized!")
+}).catch((error) => {
+    console.error("Error during DB initialization", error)
+})
 
-export const getUsername = async (tgChatId: string) => {
-    return await redis.get(getUsernameDatabaseKey(tgChatId))
+const userRepository = db.getRepository(User)
+
+export const getUserByChatId = async (tgChatId: string) => {
+    return await userRepository.findOneBy({ 
+        id: tgChatId
+    })
 }
 
-export const getTracksInfo = async (username: string) => {
-    return await redis.get(getTracksInfoDatabaseKey(username))
+export const createUser = async (user: User) => {
+    await userRepository.insert(user)
 }
 
-export const deleteUsersInfo = async (tgChatId: string, username: string) => {
-    await redis.del(getUsernameDatabaseKey(tgChatId))
-    await redis.del(getTracksInfoDatabaseKey(username))
+export const getAllUsers = async () => {
+    return await userRepository.find()
 }
 
-export const setTracksInfo = async (username: string, tracks: PlaylistInfo['tracks']) => {
-    await redis.set(getTracksInfoDatabaseKey(username), JSON.stringify(tracks))
-}
-
-export const setUsername = async (tgChatId: string, username: string) => {
-    await redis.set(getUsernameDatabaseKey(tgChatId), username)
-}
-
-export const getAllUsernameKeys = async () => {
-    return await redis.keys(getUsernameDatabaseKey('*'))
-}
-
-export const getChatIdByUsernameKey = (usernameKey: string) => {
-    if (!usernameKey.startsWith(getUsernameDatabaseKey(''))) {
-        return null
-    }
-    return usernameKey.replace(getUsernameDatabaseKey(''), '')
+export const updateTracksInfo = async (tgChatId: string, tracks: PlaylistInfo['tracks']) => {
+    await userRepository.update({ id: tgChatId }, { tracksInfo: tracks })
 }

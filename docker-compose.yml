@@ -1,33 +1,32 @@
 version: '3.4'
 
 services:
-
   db:
-    image: redis:alpine
+    image: postgres:15-alpine
     restart: always
-    expose:
-      - 6379
-    command: redis-server --loglevel warning --requirepass ${DB_PASS}
     volumes:
-      - ./db:/data
-
-  redisweb:
-    image: rediscommander/redis-commander:latest
-    restart: always
+      - ./db:/var/lib/postgresql/data
+    expose:
+      - 5432
     environment:
-      READ_ONLY: 'true'
-      REDIS_HOSTS: label:db:6379:0:${DB_PASS}
-    ports:
-      - 8081
-    depends_on:
-      - db  
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+
+  pgweb:
+    image: sosedoff/pgweb
+    restart: always
+    ports: 
+      - 5433:8081
+    depends_on: 
+      - db
 
   ya_lost_music_bot:
     image: ya-lost-music:${CI_COMMIT_SHORT_SHA-latest}
     build: 
         context: .
         args:
-          DB_URL: ${DB_URL-redis://:${DB_PASS}@db:6379/0}
+          DB_URL: ${DB_URL-postgres://${DB_USER}:${DB_PASS}@db:5432/${DB_NAME}?sslmode=disable}
           TG_BOT_TOKEN: ${TG_BOT_TOKEN}
     restart: always
     depends_on:

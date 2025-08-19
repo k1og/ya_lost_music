@@ -1,39 +1,37 @@
 import TelegramBot from 'node-telegram-bot-api'
 import axios from 'axios'
 import schedule from 'node-schedule'
+import 'reflect-metadata'
 import { config } from './config';
-import { getAllUsernameKeys, getChatIdByUsernameKey, getTracksInfo, getUsername, setTracksInfo, setUsername } from './db';
+import { createUser, getAllUsers, getUserByChatId, updateTracksInfo } from './db';
 import { TrackInfo, PlaylistInfo, PlaylistChanges } from './types';
 
-const rule = new schedule.RecurrenceRule();
-rule.hour = 14
-rule.minute = 0
-rule.tz = 'Etc/UTC'
+// TODO:
+// const rule = new schedule.RecurrenceRule();
+// rule.hour = 14
+// rule.minute = 0
+// rule.tz = 'Etc/UTC'
 
-const job = schedule.scheduleJob(rule, async () => {
-    const usernameKeys = await getAllUsernameKeys()
-    usernameKeys.forEach(async (usernameKey: string) => {
-        const tgChatId = getChatIdByUsernameKey(usernameKey)
-        if (!tgChatId) {
-            return
-        }
-        await checkForChanges(tgChatId)
-    })
-});
+// const job = schedule.scheduleJob(rule, async () => {
+//     const usernameKeys = await getAllUsers()
+//     usernameKeys.forEach(async (usernameKey: string) => {
+//         const tgChatId = getChatIdByUsernameKey(usernameKey)
+//         if (!tgChatId) {
+//             return
+//         }
+//         await checkForChanges(tgChatId)
+//     })
+// });
 
 const checkForChanges = async (tgChatId: string) => {
     try {
-        const username = await getUsername(tgChatId)
-        if (!username) {
+        const user = await getUserByChatId(tgChatId)
+        if (!user) {
             await bot.sendMessage(tgChatId, `Вы не зарегистрировали профиль`)
             return 
         }
-        const tracksString = await getTracksInfo(username)
-        if (!tracksString) {
-            throw new Error('TODO: add meaningful error')
-        }
-        const oldTracksInfo = JSON.parse(tracksString) as Array<TrackInfo>
-        const newTracksInfo = (await getPlaylistInfo(username)).tracks
+        const oldTracksInfo = user.tracksInfo
+        const newTracksInfo = (await getPlaylistInfo(user.username)).tracks
         const { deletedTracksStrings, newTracksStrings } = await checkForPlaylistChanges(oldTracksInfo, newTracksInfo)
 
         if (!deletedTracksStrings.length && !newTracksStrings.length) {
@@ -48,7 +46,7 @@ const checkForChanges = async (tgChatId: string) => {
             await bot.sendMessage(tgChatId, `Новые треки:\n ${newTracksStrings.join('\n')}`)
         }
 
-        await setTracksInfo(username, newTracksInfo)
+        await updateTracksInfo(tgChatId, newTracksInfo)
 
     } catch (error) {
         await bot.sendMessage(tgChatId, error)
@@ -121,7 +119,7 @@ bot.on('message', async (msg, _metadata) => {
             // TODO: make link plain text
             'Отправьте ссылку на ваш профиль в Яндекс Музыке в формате https://music.yandex.ru/users/<USERNAME>/playlists\n' +
             '(Публичный доступ к фонотеке должен быть включен)\n\n' +
-            'Проверка происходить в 14:00 по UTC. Так же вы можете использовать команду /check \n\n\n' +
+            // 'Проверка происходить в 14:00 по UTC. Так же вы можете использовать команду /check \n\n\n' +
             'Фил фри ту контрибьют - https://github.com/k1og/ya_lost_music'
         )
 
@@ -135,11 +133,11 @@ bot.on('message', async (msg, _metadata) => {
             const playlist = await getPlaylistInfo(username)
             const tgChatId = msg.chat.id
 
-            const oldUsername = await getUsername(tgChatId.toString())
+            const user = await getUserByChatId(tgChatId.toString())
+            const isOldUser = !user
 
-            await setUsername(tgChatId.toString(), username)
-            await setTracksInfo(username, playlist.tracks)
-            const successMessage = oldUsername ? `Успешно перерегистрировано` : `Успешно зарегистрировано`
+            await createUser({ id: tgChatId.toString(), username, tracksInfo: playlist.tracks, timeToNotify: '12:00:00' })
+            const successMessage = isOldUser ? `Успешно перерегистрировано` : `Успешно зарегистрировано`
             await bot.sendMessage(msg.chat.id, successMessage)
         } catch (error) {
             await bot.sendMessage(msg.chat.id, error)
