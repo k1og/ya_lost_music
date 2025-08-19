@@ -7,7 +7,7 @@ services:
     restart: always
     expose:
       - 6379
-    command: redis-server --loglevel warning --requirepass yamusic
+    command: redis-server --loglevel warning --requirepass ${DB_PASS}
     volumes:
       - ./db:/data
 
@@ -16,7 +16,7 @@ services:
     restart: always
     environment:
       READ_ONLY: 'true'
-      REDIS_HOSTS: label:db:6379:0:yamusic
+      REDIS_HOSTS: label:db:6379:0:${DB_PASS}
     ports:
       - 8081
     depends_on:
@@ -27,7 +27,7 @@ services:
     build: 
         context: .
         args:
-          DB_URL: ${DB_URL-redis://:yamusic@db:6379/0}
+          DB_URL: ${DB_URL-redis://:${DB_PASS}@db:6379/0}
           TG_BOT_TOKEN: ${TG_BOT_TOKEN}
     restart: always
     depends_on:
