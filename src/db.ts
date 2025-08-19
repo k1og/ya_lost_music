@@ -2,7 +2,7 @@ import Redis from 'ioredis'
 import { config } from './config'
 import { PlaylistInfo } from './types'
 
-const redis = new Redis(config.databaseUrl)
+export const redis = new Redis(config.databaseUrl)
 
 const getUsernameDatabaseKey = (tgChatId: string) => `ya_music_username_${tgChatId}`
 const getTracksInfoDatabaseKey = (yaMusicUsername: string) => `ya_music_tracks_${yaMusicUsername}`
@@ -33,5 +33,8 @@ export const getAllUsernameKeys = async () => {
 }
 
 export const getChatIdByUsernameKey = (usernameKey: string) => {
+    if (!usernameKey.startsWith(getUsernameDatabaseKey(''))) {
+        return null
+    }
     return usernameKey.replace(getUsernameDatabaseKey(''), '')
 }

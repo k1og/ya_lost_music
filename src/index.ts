@@ -14,6 +14,9 @@ const job = schedule.scheduleJob(rule, async () => {
     const usernameKeys = await getAllUsernameKeys()
     usernameKeys.forEach(async (usernameKey: string) => {
         const tgChatId = getChatIdByUsernameKey(usernameKey)
+        if (!tgChatId) {
+            return
+        }
         await checkForChanges(tgChatId)
     })
 });
