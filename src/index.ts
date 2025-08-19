@@ -1,8 +1,9 @@
 import TelegramBot from 'node-telegram-bot-api'
-import Redis from 'ioredis'
 import axios from 'axios'
 import schedule from 'node-schedule'
 import { config } from './config';
+import { getAllUsernameKeys, getChatIdByUsernameKey, getTracksInfo, getUsername, setTracksInfo, setUsername } from './db';
+import { TrackInfo, PlaylistInfo, PlaylistChanges } from './types';
 
 const rule = new schedule.RecurrenceRule();
 rule.hour = 14
@@ -10,21 +11,21 @@ rule.minute = 0
 rule.tz = 'Etc/UTC'
 
 const job = schedule.scheduleJob(rule, async () => {
-    const usernameKeys = await redis.keys(getUsernameDatabaseKey('*'))
-    usernameKeys.forEach(async (usernameKey) => {
-        const tgChatId = usernameKey.replace(getUsernameDatabaseKey(''), '')
+    const usernameKeys = await getAllUsernameKeys()
+    usernameKeys.forEach(async (usernameKey: string) => {
+        const tgChatId = getChatIdByUsernameKey(usernameKey)
         await checkForChanges(tgChatId)
     })
 });
 
 const checkForChanges = async (tgChatId: string) => {
     try {
-        const username = await redis.get(getUsernameDatabaseKey(tgChatId))
+        const username = await getUsername(tgChatId)
         if (!username) {
             await bot.sendMessage(tgChatId, `Вы не зарегистрировали профиль`)
             return 
         }
-        const tracksString = await redis.get(getTracksInfoDatabaseKey(username))
+        const tracksString = await getTracksInfo(username)
         if (!tracksString) {
             throw new Error('TODO: add meaningful error')
         }
@@ -44,17 +45,12 @@ const checkForChanges = async (tgChatId: string) => {
             await bot.sendMessage(tgChatId, `Новые треки:\n ${newTracksStrings.join('\n')}`)
         }
 
-        await redis.set(getTracksInfoDatabaseKey(username), JSON.stringify(newTracksInfo))
+        await setTracksInfo(username, newTracksInfo)
 
     } catch (error) {
         await bot.sendMessage(tgChatId, error)
     }
 }
-
-const getUsernameDatabaseKey = (tgChatId: string) => `ya_music_username_${tgChatId}`
-const getTracksInfoDatabaseKey = (yaMusicUsername: string) => `ya_music_tracks_${yaMusicUsername}`
-
-const redis = new Redis(config.databaseUrl)
 
 const token = config.tgBotToken
 
@@ -63,30 +59,6 @@ const bot = new TelegramBot(token, {polling: true});
 const profileUrlRegex = /https:\/\/music\.yandex\.ru\/users\/.*?\/playlists/
 
 const getPlaylistInfoUrl = (username: string) => `https://music.yandex.ru/handlers/playlist.jsx?owner=${username}&kinds=3`
-
-type ArtistInfo = {
-    name: string
-}
-type AlbumInfo = {
-    id: number
-    title: string
-}
-
-type TrackInfo = {
-    id: string
-    artists: Array<ArtistInfo>
-    albums: Array<AlbumInfo>
-    title: string
-}
-
-type PlaylistInfo = {
-    tracks: Array<TrackInfo>
-}
-
-type PlaylistChanges = {
-    deletedTracksStrings: Array<string>
-    newTracksStrings: Array<string>
-}
 
 const trackInfoToString = (track: TrackInfo) => {
     const { artists, albums, title } = track
@@ -142,15 +114,12 @@ bot.on('message', async (msg, _metadata) => {
     if (msg.text === '/start') {
         await bot.sendMessage(
             msg.chat.id, 
-            'Я з**бався терять песни, из-за того, что кнопки переключения треков находятся рядом с кнопками "Нравится" и "Не рекомендовать"\n' +
-            'Я просто мискликаю, не замечая этого и всё, прощай, песенка, я даже не вспомню о твоем существовании\n' +
-            'Поэтому вместо того, чтобы РАБотать, написал бота, который трекает изменения содержимого в плейлисте "Мне нравится"\n\n' +
-            'Проверка происходить в 14:00 по UTC. Так же вы можете использовать команду /check \n\n\n' +
+            // TODO: update text
             // TODO: make link plain text
             'Отправьте ссылку на ваш профиль в Яндекс Музыке в формате https://music.yandex.ru/users/<USERNAME>/playlists\n' +
             '(Публичный доступ к фонотеке должен быть включен)\n\n' +
-            'P.S. Оно работает медленно для больших плейлистов, может когда-нибудь у меня дойдут руки до оптимизации.\n' +
-            'Но, если что, фил фри ту контрибьют - https://github.com/k1og/ya_lost_music'
+            'Проверка происходить в 14:00 по UTC. Так же вы можете использовать команду /check \n\n\n' +
+            'Фил фри ту контрибьют - https://github.com/k1og/ya_lost_music'
         )
 
         return
@@ -158,18 +127,15 @@ bot.on('message', async (msg, _metadata) => {
 
     const isRegisterCommand = !!(msg.text && profileUrlRegex.test(msg.text))
     if (isRegisterCommand) {
-        const username = msg.text!.split('/')[msg.text!.split('/').length - 2]
         try {
+            const username = msg.text!.split('/')[msg.text!.split('/').length - 2]
             const playlist = await getPlaylistInfo(username)
-            const oldUsername = await redis.get(getUsernameDatabaseKey(msg.chat.id.toString()))
+            const tgChatId = msg.chat.id
 
-            if (oldUsername) {
-                await redis.del(getUsernameDatabaseKey(msg.chat.id.toString()))
-                await redis.del(getTracksInfoDatabaseKey(username))
-            }
-            
-            await redis.set(getUsernameDatabaseKey(msg.chat.id.toString()), username)
-            await redis.set(getTracksInfoDatabaseKey(username), JSON.stringify(playlist.tracks))
+            const oldUsername = await getUsername(tgChatId.toString())
+
+            await setUsername(tgChatId.toString(), username)
+            await setTracksInfo(username, playlist.tracks)
             const successMessage = oldUsername ? `Успешно перерегистрировано` : `Успешно зарегистрировано`
             await bot.sendMessage(msg.chat.id, successMessage)
         } catch (error) {
