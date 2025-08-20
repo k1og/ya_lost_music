@@ -28,25 +28,27 @@ export const getPlaylistInfo = async (username: string): Promise<PlaylistInfo> =
 export const checkForPlaylistChanges = (oldTracksInfo: Array<TrackInfo>, newTracksInfo: Array<TrackInfo>): PlaylistChanges => {
     const deletedTracksStrings: Array<string> = []
     const newTracksStrings: Array<string> = []
+    const newTracksDict = {}
+    const oldTracksDict = {}
+
+    newTracksInfo.forEach(track => {
+        newTracksDict[track.id] = track
+    })
+
+    oldTracksInfo.forEach((track) => {
+        if (!newTracksDict[track.id]) {
+          deletedTracksStrings.push(trackInfoToString(track))
+        }
+    })
 
     oldTracksInfo.forEach(track => {
-        const foundIndex = newTracksInfo.findIndex(newTrack => newTrack.id === track.id)
-
-        if (foundIndex !== -1) {
-            return
-        }
-
-        deletedTracksStrings.push(trackInfoToString(track))
+        oldTracksDict[track.id] = track
     })
 
     newTracksInfo.forEach(track => {
-        const foundIndex = oldTracksInfo.findIndex(oldTrack => oldTrack.id === track.id)
-
-        if (foundIndex !== -1) {
-            return
+        if (!oldTracksDict[track.id]) {
+            newTracksStrings.push(trackInfoToString(track))
         }
-
-        newTracksStrings.push(trackInfoToString(track))
     })
     
     return {
