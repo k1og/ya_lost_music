@@ -18,6 +18,11 @@ describe('User Repository', () => {
     await db.destroy()
   })
 
+  it('no created user', async () => {
+    const user = await getUserByChatId('id');
+    expect(user).toBe(null)
+  })
+
   it('should create a user', async () => {
     const newUserId = '123'
     const newUser = { id: newUserId, timeToNotify: '15:20:00', tracksInfo: [], username: 'idk'}
