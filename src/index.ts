@@ -4,10 +4,10 @@ import schedule from 'node-schedule'
 import 'reflect-metadata'
 import { config } from './config';
 import { createUser, getAllUsers, getUserByChatId, updateTracksInfo, waitForDbInitialization } from './db';
-import { getPlaylistInfo, generateRandomTimeString, checkForPlaylistChanges, profileUrlRegex } from './utils';
+import { getPlaylistInfo, generateRandomTimeString, checkForPlaylistChanges, profileUrlRegex, timeStringToHourMinute } from './utils';
 
 const scheduleNotificationForUser = (tgChatId: string, time: string) => {
-    const [hour, minute] = time.split(':')
+    const [hour, minute] = timeStringToHourMinute(time)
     schedule.scheduleJob({ rule: `${minute} ${hour} * * *`, tz: 'Etc/UTC' }, () => {
         checkCommand(tgChatId)
     })
