@@ -4,7 +4,7 @@ import schedule from 'node-schedule'
 import 'reflect-metadata'
 import { config } from './config';
 import { createUser, getAllUsers, getUserByChatId, updateTracksInfo, waitForDbInitialization } from './db';
-import { getPlaylistInfo, generateRandomTimeString, checkForPlaylistChanges, profileUrlRegex, timeStringToHourMinute } from './utils';
+import { getPlaylistInfo, generateRandomTimeString, checkForPlaylistChanges, profileUrlRegex, timeStringToHourMinute, getUsernameFromProfileUrl } from './utils';
 
 const scheduleNotificationForUser = (tgChatId: string, time: string) => {
     const [hour, minute] = timeStringToHourMinute(time)
@@ -27,10 +27,10 @@ const rescheduleNotificationsAfterRestart = async () => {
 }
 
 const registerCommand = async (msg: TelegramBot.Message) => {
+    const tgChatId = msg.chat.id
     try {
-        const username = msg.text!.split('/')[msg.text!.split('/').length - 2]
+        const username = getUsernameFromProfileUrl(msg.text!)
         const playlist = await getPlaylistInfo(username)
-        const tgChatId = msg.chat.id
 
         const user = await getUserByChatId(tgChatId.toString())
         const isOldUser = !user
@@ -39,9 +39,9 @@ const registerCommand = async (msg: TelegramBot.Message) => {
         await createUser({ id: tgChatId.toString(), username, tracksInfo: playlist.tracks, timeToNotify })
         scheduleNotificationForUser(tgChatId.toString(), timeToNotify)
         const successMessage = isOldUser ? `Успешно перерегистрировано` : `Успешно зарегистрировано`
-        await bot.sendMessage(msg.chat.id, successMessage + `\nПроверка будет происходить в по ${timeToNotify} UTC. Так же вы можете использовать команду /check`)
+        await bot.sendMessage(tgChatId, successMessage + `\nПроверка будет происходить в по ${timeToNotify} UTC. Так же вы можете использовать команду /check`)
     } catch (error) {
-        await bot.sendMessage(msg.chat.id, error)
+        await bot.sendMessage(tgChatId, error)
     }
 }
 

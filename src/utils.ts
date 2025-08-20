@@ -3,6 +3,8 @@ import { TrackInfo, PlaylistInfo, PlaylistChanges } from "./types";
 
 export const profileUrlRegex = /https:\/\/music\.yandex\.ru\/users\/.*?\/playlists/
 
+export const getUsernameFromProfileUrl = (profileUrl: string) => profileUrl.split('/')[profileUrl.split('/').length - 2]
+
 export const getPlaylistInfoUrl = (username: string) => `https://music.yandex.ru/handlers/playlist.jsx?owner=${username}&kinds=3`
 
 export const getTrackLink = (track: TrackInfo) => {

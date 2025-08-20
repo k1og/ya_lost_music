@@ -1,6 +1,6 @@
 import { describe, it, expect } from "@jest/globals";
 import { TrackInfo } from '../types';
-import { checkForPlaylistChanges, generateRandomTimeString, profileUrlRegex, timeStringToHourMinute, trackInfoToString } from '../utils'
+import { checkForPlaylistChanges, generateRandomTimeString, getUsernameFromProfileUrl, profileUrlRegex, timeStringToHourMinute, trackInfoToString } from '../utils'
 
 describe('checkForPlaylistChanges', () => {
   it('should return empty arrays when there are no changes', () => {
@@ -74,7 +74,6 @@ describe('profileUrlRegex', () => {
   });
 });
 
-
 describe("generateRandomTimeString", () => {
   it("should return a string in the format 'HH:MM:SS'", () => {
     const result = generateRandomTimeString();
@@ -91,7 +90,6 @@ describe("generateRandomTimeString", () => {
   });
 });
 
-
 describe('timeStringToHourMinute', () => {
     it('should return the hour and minute from a valid time string', () => {
         const time = '14:30:00';
@@ -105,3 +103,13 @@ describe('timeStringToHourMinute', () => {
         expect(timeStringToHourMinute(time)).toEqual(expectedOutput);
     });
 });
+
+describe('getUsernameFromProfileUrl', () => {
+  it('should match a valid profile username', () => {
+    expect(getUsernameFromProfileUrl('https://music.yandex.ru/users/johndoe/playlists')).toBe('johndoe');
+  });
+
+  it('should not match an invalid profile username', () => {
+    expect(getUsernameFromProfileUrl('asdf')).toBeUndefined();
+  });
+})
