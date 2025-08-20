@@ -1,5 +1,4 @@
 import TelegramBot from 'node-telegram-bot-api'
-import axios from 'axios'
 import schedule from 'node-schedule'
 import 'reflect-metadata'
 import { config } from './config';

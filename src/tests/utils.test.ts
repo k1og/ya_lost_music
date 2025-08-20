@@ -67,11 +67,16 @@ describe('trackInfoToString', () => {
 describe('profileUrlRegex', () => {
   it('should match a valid profile URL', () => {
     expect(profileUrlRegex.test('https://music.yandex.ru/users/johndoe/playlists')).toBe(true);
+    expect(profileUrlRegex.test('https://music.yandex.ru/users/johndoe/playlists/')).toBe(true);
   });
 
   it('should not match an invalid profile URL', () => {
     expect(profileUrlRegex.test('https://music.yandex.ru/users/johndoe/invalid')).toBe(false);
+    expect(profileUrlRegex.test('https://music.yandex.ru/users/johndoe/pleasedont/playlists')).toBe(false);
+    expect(profileUrlRegex.test('https://music.yandex.ru/users/johndoe/playlists/triggersomethingelse/')).toBe(false);
+    expect(profileUrlRegex.test('https://music.yandex.ru/users/321321/playlists')).toBe(false);
   });
+  
 });
 
 describe("generateRandomTimeString", () => {

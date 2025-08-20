@@ -1,7 +1,7 @@
 import axios from "axios";
 import { TrackInfo, PlaylistInfo, PlaylistChanges } from "./types";
 
-export const profileUrlRegex = /https:\/\/music\.yandex\.ru\/users\/.*?\/playlists/
+export const profileUrlRegex = /https:\/\/music\.yandex\.ru\/users\/[A-Za-z]+[A-Za-z0-9]+\/playlists\/?$/
 
 export const getUsernameFromProfileUrl = (profileUrl: string) => profileUrl.split('/')[profileUrl.split('/').length - 2]
 
