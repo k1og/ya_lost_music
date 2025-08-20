@@ -8,7 +8,7 @@ import { getPlaylistInfo, generateRandomTimeString, checkForPlaylistChanges, pro
 
 const scheduleNotificationForUser = (tgChatId: string, time: string) => {
     const [hour, minute] = time.split(':')
-    schedule.scheduleJob(`${minute} ${hour} * * *`, () => {
+    schedule.scheduleJob({ rule: `${minute} ${hour} * * *`, tz: 'Etc/UTC' }, () => {
         checkCommand(tgChatId)
     })
 };
