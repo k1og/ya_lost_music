@@ -11,6 +11,20 @@ export const db = new DataSource({
     entities: [path.join(__dirname, './entities/*.*')],
 })
 
+export const waitForDbInitialization = () => new Promise<void>(
+  (resolve) => {
+    const interval = setInterval(
+      () => {
+        if (db.isInitialized) {
+          clearInterval(interval)
+          resolve()
+        }
+      },
+      500
+    )
+  }
+)
+
 db.initialize().then(() => {
     console.log("DB has been initialized!")
 }).catch((error) => {

@@ -1,22 +1,8 @@
 
 import { describe, it, expect, beforeEach, afterAll, beforeAll } from '@jest/globals';
-import { db, getUserByChatId, createUser, getAllUsers, updateTracksInfo } from '../db';
+import { db, getUserByChatId, createUser, getAllUsers, updateTracksInfo, waitForDbInitialization } from '../db';
 import { User } from '../entities/user.entity';
 import { PlaylistInfo } from '../types';
-
-const waitForDbInitialization = () => new Promise<void>(
-  (resolve) => {
-    const interval = setInterval(
-      () => {
-        if (db.isInitialized) {
-          clearInterval(interval)
-          resolve()
-        }
-      },
-      500
-    )
-  }
-)
 
 describe('User Repository', () => {
   beforeAll(() => {
@@ -38,7 +24,7 @@ describe('User Repository', () => {
     await createUser(newUser);
 
     const user = await getUserByChatId(newUserId);
-    console.log(user)
+
     expect(user).toEqual(newUser);
   });
 
