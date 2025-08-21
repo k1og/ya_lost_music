@@ -21,6 +21,9 @@ jobs:
       - name: Database up
         run: docker compose -f docker-compose.dev.yml up -d
 
+      - name: Synchronize schema
+        run: yarn sync-schema
+
       - name: Run tests
         run: yarn test
 
