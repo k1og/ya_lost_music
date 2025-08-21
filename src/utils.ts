@@ -65,7 +65,11 @@ export const randomInteger = (min: number, max: number) => {
 }
 
 export const generateRandomTimeString = (): string => {
-    return `${randomInteger(0, 23)}:${randomInteger(0, 59)}:00`
+    let hour: string | number = randomInteger(0, 23)
+    hour = hour < 10 ? `0${hour}` : hour
+    let minute: string | number = randomInteger(0, 59)
+    minute = minute < 10 ? `0${minute}` : minute
+    return `${hour}:${minute}:00`
 }
 
 export const timeStringToHourMinute = (time: string): [string, string] => time.split(':').slice(0, 2) as [string, string]

@@ -82,7 +82,7 @@ describe('profileUrlRegex', () => {
 describe("generateRandomTimeString", () => {
   it("should return a string in the format 'HH:MM:SS'", () => {
     const result = generateRandomTimeString();
-    expect(result).toMatch(/^\d+:\d+:\d+$/);
+    expect(result).toMatch(/^(\d{1}|\d{2}):(\d{1}|\d{2}):\d{2}$/);
   });
 
   it("should not return hours > 24, minutes > 60", () => {

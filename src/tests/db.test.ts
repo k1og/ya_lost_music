@@ -1,6 +1,6 @@
 
 import { describe, it, expect, beforeEach, afterAll, beforeAll } from '@jest/globals';
-import { db, getUserByChatId, createUser, getAllUsers, updateTracksInfo, waitForDbInitialization } from '../db';
+import { db, getUserByChatId, createUser, getAllUsers, updateTracksInfo, waitForDbInitialization, updateUsername } from '../db';
 import { User } from '../entities/user.entity';
 import { PlaylistInfo } from '../types';
 
@@ -77,5 +77,16 @@ describe('User Repository', () => {
 
     const user = await getUserByChatId(newUser.id);
     expect(user!.tracksInfo).toEqual(tracks);
+  });
+
+  it('should update username', async () => {
+    const newUserId = '123'
+    const newUser = { id: newUserId, timeToNotify: '12:34:00', tracksInfo: [], username: 'idk'}
+    await createUser(newUser);
+
+    await updateUsername(newUser.id, 'new username');
+
+    const user = await getUserByChatId(newUser.id);
+    expect(user!.username).toEqual('new username');
   });
 });

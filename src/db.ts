@@ -48,5 +48,9 @@ export const getAllUsers = async () => {
 }
 
 export const updateTracksInfo = async (tgChatId: string, tracks: PlaylistInfo['tracks']) => {
-    await userRepository.update({ id: tgChatId }, { tracksInfo: tracks })
+    await userRepository.update(tgChatId, { tracksInfo: tracks })
+}
+
+export const updateUsername = async (tgChatId: string, username: string) => {
+    await userRepository.update(tgChatId, { username })
 }
