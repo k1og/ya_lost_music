@@ -62,11 +62,11 @@ export const checkCommand = async (bot: TelegramBot, tgChatId: string) => {
         }
 
         if (deletedTracksStrings.length) {
-            await bot.sendMessage(tgChatId, `Удаленные треки:\n ${deletedTracksStrings.join('\n')}`)
+            await bot.sendMessage(tgChatId, `Удаленные треки:\n${deletedTracksStrings.join('\n')}`)
         }
 
         if (newTracksStrings.length) {
-            await bot.sendMessage(tgChatId, `Новые треки:\n ${newTracksStrings.join('\n')}`)
+            await bot.sendMessage(tgChatId, `Новые треки:\n${newTracksStrings.join('\n')}`)
         }
         await updateTracksInfo(tgChatId, newTracksInfo)
 
